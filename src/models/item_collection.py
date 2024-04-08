@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
@@ -22,7 +22,7 @@ class CollectionItemChild(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     local_index: int
     local_label: Optional[str]
-    collection_id: int = Field(foreign_key='collectionitem.id')
+    collection_id: Optional[int] = Field(foreign_key='collectionitem.id')
     child_id: int = Field(foreign_key='item.id')
     # Relationship to CollectionItem
     collection: 'CollectionItem' = Relationship(back_populates='children')
@@ -30,27 +30,39 @@ class CollectionItemChild(SQLModel, table=True):
     child: 'Item' = Relationship(back_populates='containing_collection_child')
 
 class CollectionItemChildCreate(BaseModel):
+    local_index: Optional[int]
+    local_label: Optional[str]
+    child_id: int
+
+class CollectionItemChildRead(BaseModel):
+    id: int
     local_index: int
-    local_label: str
-    collection_id: int
+    local_label: Optional[str]
     child_id: int
 
 class CollectionItemChildUpdate(BaseModel):
+    id: int
     local_index: Optional[int]
     local_label: Optional[str]
+
+class CollectionItemChildDelete(BaseModel):
+    id: int
 
 class CollectionItem(Item, table=True):
     name: Optional[str] = None
     child_display_class: CollectionChildDisplayClass = Field(default=CollectionChildDisplayClass.BLOCK)
     # Relationship to CollectionItemChild
-    children: List[CollectionItemChild] = Relationship(back_populates='collection')
+    children: list[CollectionItemChild] = Relationship(back_populates='collection')
 
 class CollectionItemCreate(CollectionItem):
-    del id
-    children: List[CollectionItemChild | CollectionItemChildCreate]
+    id: None = None
+    children: list[CollectionItemChild | CollectionItemChildCreate]
+
+class CollectionItemRead(CollectionItem):
+    children: list[CollectionItemChildRead]
 
 class CollectionItemUpdate(CollectionItem):
     child_display_class: Optional[CollectionChildDisplayClass]
-    children_create: Optional[List[CollectionItemChildCreate]]
-    children_update: Optional[List[CollectionItemChildUpdate]]
-    children_delete: Optional[List[int]]
+    children_create: Optional[list[CollectionItemChildCreate]]
+    children_update: Optional[list[CollectionItemChildUpdate]]
+    children_delete: Optional[list[CollectionItemChildDelete]]

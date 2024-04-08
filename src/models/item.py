@@ -1,6 +1,6 @@
 # Base Item Model
 import datetime
-from typing import List, Optional
+from typing import Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -12,4 +12,4 @@ class Item(SQLModel):
     updated_at: datetime = Field(default=None)
     author_id: int = Field(foreign_key='author.id')
 
-    containing_collection_child: List["CollectionItemChild"] = Relationship(back_populates="child")
+    containing_collection_child: list["CollectionItemChild"] = Relationship(back_populates="child")
