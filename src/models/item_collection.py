@@ -21,7 +21,7 @@ class CollectionItemChild(SQLModel, table=True):
     )
     id: Optional[int] = Field(default=None, primary_key=True)
     local_index: int
-    local_label: str = Field(default="")
+    local_label: Optional[str]
     collection_id: int = Field(foreign_key='collectionitem.id')
     child_id: int = Field(foreign_key='item.id')
     # Relationship to CollectionItem
