@@ -3,3 +3,6 @@ pydantic
 sqlmodel
 fastapi
 uvicorn[standard]
+aiofiles
+pydantic-settings
+psycopg2-binary

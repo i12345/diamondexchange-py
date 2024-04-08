@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
@@ -22,12 +22,41 @@ class CollectionItemChild(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     local_index: int
     local_label: Optional[str]
-    collection_id: Optional[int] = Field(foreign_key='collectionitem.id')
+    collection_id: Optional[int] = Field(foreign_key='collection_item.id')
     child_id: int = Field(foreign_key='item.id')
     # Relationship to CollectionItem
-    collection: 'CollectionItem' = Relationship(back_populates='children')
+    collection: Optional["CollectionItem"] = Relationship(back_populates='children')
     # Relationship to ItemBase (assuming inheritance or direct relation)
-    child: 'Item' = Relationship(back_populates='containing_collection_child')
+    child: Item = Relationship(back_populates='containing_collection_child')
+
+Item.model_rebuild()
+
+class CollectionItem(Item, table=True):
+    def __init__(self, name: Optional[str], child_display_class: Optional[CollectionChildDisplayClass], children: Optional[List["CollectionItemChild"]], **kwargs):
+        super().__init__(self, **kwargs)
+    
+    containing_collection_child: list[CollectionItemChild] = Relationship(back_populates="child")
+
+    name: Optional[str] = None
+    child_display_class: CollectionChildDisplayClass = Field(default=CollectionChildDisplayClass.BLOCK)
+    children: list[CollectionItemChild] = Relationship(back_populates='collection')
+    # children = Relationship(back_populates='collection')
+
+CollectionItemChild.model_rebuild()
+
+class CollectionItemCreate(CollectionItem):
+    id: None = None
+    children: list["CollectionItemChild" | "CollectionItemChildCreate"]
+
+class CollectionItemRead(CollectionItem):
+    children: list["CollectionItemChildRead"]
+
+class CollectionItemUpdate(CollectionItem):
+    child_display_class: Optional[CollectionChildDisplayClass]
+    children: Optional[list["CollectionItemChildUpdate"]]
+    children_create: Optional[list["CollectionItemChildCreate"]]
+    children_update: Optional[list["CollectionItemChildUpdate"]]
+    children_delete: Optional[list["CollectionItemChildDelete"]]
 
 class CollectionItemChildCreate(BaseModel):
     local_index: Optional[int]
@@ -47,22 +76,3 @@ class CollectionItemChildUpdate(BaseModel):
 
 class CollectionItemChildDelete(BaseModel):
     id: int
-
-class CollectionItem(Item, table=True):
-    name: Optional[str] = None
-    child_display_class: CollectionChildDisplayClass = Field(default=CollectionChildDisplayClass.BLOCK)
-    # Relationship to CollectionItemChild
-    children: list[CollectionItemChild] = Relationship(back_populates='collection')
-
-class CollectionItemCreate(CollectionItem):
-    id: None = None
-    children: list[CollectionItemChild | CollectionItemChildCreate]
-
-class CollectionItemRead(CollectionItem):
-    children: list[CollectionItemChildRead]
-
-class CollectionItemUpdate(CollectionItem):
-    child_display_class: Optional[CollectionChildDisplayClass]
-    children_create: Optional[list[CollectionItemChildCreate]]
-    children_update: Optional[list[CollectionItemChildUpdate]]
-    children_delete: Optional[list[CollectionItemChildDelete]]

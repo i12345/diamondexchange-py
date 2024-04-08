@@ -45,34 +45,40 @@ def update_collection(collection_id: int, collection_update: CollectionItemUpdat
     
     session.add(db_collection)
 
-    for child_create in collection_update.children_create:
-        child = CollectionItemChild(
-                local_index=child_create.local_index or len(db_collection.children),
-                local_label=child_create.local_index,
-                child_id=child_create.child_id
-            ) if child_create is CollectionItemChildCreate else child_create
-        session.add(child)
-        db_collection.children.insert(child.local_index, child)
-        session.commit()
-        for i in range(len(db_collection.children)):
-            db_collection.children[i].local_index = i
+    if collection_update.children is not None:
+        raise HTTPException(status_code=501, detail="Not implemented")
+    else:
+        if collection_update.children_create is not None:
+            for child_create in collection_update.children_create:
+                child = CollectionItemChild(
+                        local_index=child_create.local_index or len(db_collection.children),
+                        local_label=child_create.local_index,
+                        child_id=child_create.child_id
+                    ) if child_create is CollectionItemChildCreate else child_create
+                session.add(child)
+                db_collection.children.insert(child.local_index, child)
+                session.commit()
+                for i in range(len(db_collection.children)):
+                    db_collection.children[i].local_index = i
 
-    for child_update in collection_update.children_update:
-        child = next(child_search for child_search in db_collection.children if child_search.id == child_update.id)
-        session.add(child)
-        if child_update.local_index is not None and child_update.local_index != child.local_index:
-            db_collection.children.remove(child)
-            db_collection.children.insert(child.local_index, child)
-            for i in range(len(db_collection.children)):
-                db_collection.children[i].local_index = i
+        if collection_update.children_update is not None:
+            for child_update in collection_update.children_update:
+                child = next(child_search for child_search in db_collection.children if child_search.id == child_update.id)
+                session.add(child)
+                if child_update.local_index is not None and child_update.local_index != child.local_index:
+                    db_collection.children.remove(child)
+                    db_collection.children.insert(child.local_index, child)
+                    for i in range(len(db_collection.children)):
+                        db_collection.children[i].local_index = i
 
-    for child_delete in collection_update.children_delete:
-        child = next(child_search for child_search in db_collection.children if child_search.id == child_delete.id)
-        db_collection.children.remove(child)
-        session.delete(child)
-        session.commit()
-        for i in range(len(db_collection.children)):
-            db_collection.children[i].local_index = i
+        if collection_update.children_delete is not None:
+            for child_delete in collection_update.children_delete:
+                child = next(child_search for child_search in db_collection.children if child_search.id == child_delete.id)
+                db_collection.children.remove(child)
+                session.delete(child)
+                session.commit()
+                for i in range(len(db_collection.children)):
+                    db_collection.children[i].local_index = i
 
     session.commit()
     session.refresh(db_collection)
