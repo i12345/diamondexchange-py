@@ -1,6 +1,2 @@
 from .item_ref import ItemRef
-from .item import Item
-from .item_collection import CollectionItem, CollectionChildDisplayClass, CollectionItemCreate, CollectionItemRead, CollectionItemUpdate, CollectionItemChildDelete, CollectionItemChild, CollectionItemChildCreate, CollectionItemChildRead, CollectionItemChildUpdate, CollectionItemChildChildDelete
-from .item_note import NoteItem, NoteItemCreate, NoteItemUpdate
-
-Item.model_rebuild()
+from .item import Item, ItemChild, ItemChildrenDisplayClass, ItemReference, ItemChildReference, ItemCreate, ItemChildCreate, ItemRead, ItemChildRead, ItemUpdate, ItemChildUpdate, ItemChildRemove, ITEM_TEXT_DELETE
