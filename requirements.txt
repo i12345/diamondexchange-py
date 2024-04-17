@@ -1,7 +1,9 @@
 dspy-ai[chromadb]
+tiktoken
 pydantic
 sqlmodel
 fastapi
 uvicorn[standard]
 pydantic-settings
 psycopg2-binary
+typer

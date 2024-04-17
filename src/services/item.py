@@ -1,19 +1,19 @@
-from typing import AsyncGenerator
+from typing import Generator
 
 from sqlmodel import or_, select
-from src.models.item_collection import CollectionItemChild
+from src.models.item import ItemChild
 from src.models.item_ref import ItemRef
-from src.db.database import async_session  # Assuming async_session is your async database session
+from src.db.database import get_session
 
-async def get_absolute_item_ids(item_ref: ItemRef) -> AsyncGenerator[int, None]:
+def get_absolute_item_ids(item_ref: ItemRef) -> Generator[int, None]:
     if item_ref.path is not None:
-        async with async_session() as session:
-            result = await session.execute(
-                select(CollectionItemChild.childId).where(
-                    CollectionItemChild.collectionId == item_ref.root,
+        with get_session() as session:
+            result = session.exec(
+                select(ItemChild.childId).where(
+                    ItemChild.collectionId == item_ref.root,
                     or_(
-                        CollectionItemChild.local_label == item_ref.path[0],
-                        CollectionItemChild.local_label == None
+                        ItemChild.label == item_ref.path[0],
+                        ItemChild.label == None
                     )
                 )
             )
@@ -22,7 +22,7 @@ async def get_absolute_item_ids(item_ref: ItemRef) -> AsyncGenerator[int, None]:
         next_path = item_ref.path[1:]
 
         for child in children:
-            async for child_id in get_absolute_item_ids(ItemRef(root=child.childId, path=next_path)):
+            for child_id in get_absolute_item_ids(ItemRef(root=child.childId, path=next_path)):
                 yield child_id
     else:
         yield item_ref.root

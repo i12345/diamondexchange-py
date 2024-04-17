@@ -1,7 +1,11 @@
 from abc import ABC, abstractmethod
+from typing import Generator
 from pydantic import BaseModel, Field
-from discourse.discourse import DiscourseChunkIngestor, DiscourseChunkIngestorContext, Person
+from ai.discourse.ingestor import DiscourseChunkIngestor, DiscourseChunkIngestorContext
+from ai.discourse.discourse import PartialDiscourse
+from ai.teacher.student import Student
 from teacher.learning_outcome import LearningOutcome
+from dspy import Signature, InputField, OutputField
 
 class TeachingImpact(BaseModel):
     LO: LearningOutcome = Field()
@@ -10,9 +14,20 @@ class TeachingImpact(BaseModel):
 class TeachingDevice(ABC, BaseModel):
     type: str
 
+class TeachingDeviceRecommendation:
+    teaching_device: TeachingDevice
+    intended_impact: TeachingImpact
+
+class TeachingDeviceGenerationBaseSignature(Signature):
+    """Teaching device generation requested"""
+
+    teaching_impacts: list[TeachingImpact] = InputField(description="Desired teaching impact(s)")
+    student: Student = InputField(description="Student to teach")
+    discourse: PartialDiscourse = InputField(description="Discourse to generate teaching device in")
+
 class TeachingDeviceGenerator(ABC):
     @abstractmethod
-    def generate(self, impacts: list[TeachingImpact], student: Person, n: int) -> list[TeachingDevice]:
+    def generate(self, teaching_impacts: list[TeachingImpact], student: Student, discourse: PartialDiscourse) -> Generator[TeachingDeviceRecommendation]:
         pass
 
 class TeachingDeviceCollector():
@@ -33,12 +48,12 @@ class TeachingDeviceExtractor(DiscourseChunkIngestor, ABC):
         super(TeachingDeviceExtractor, self).__init__()
         self.collector = collector
 
-    def ingest(self, prev_chunk: str, new_chunk: str, context_initial: TeachingDeviceExtractorContext) -> TeachingDeviceExtractorContext:
-        result = self.extract(prev_chunk=prev_chunk, new_chunk=new_chunk, context_initial=context_initial)
+    def ingest(self, prev_chunk: str, new_chunk: str, context: TeachingDeviceExtractorContext) -> TeachingDeviceExtractorContext:
+        result = self.extract(prev_chunk=prev_chunk, new_chunk=new_chunk, context=context)
         for teaching_device in result.extracted_teaching_devices:
             self.collector.collect(teaching_device=teaching_device)
         return result.new_context
 
     @abstractmethod
-    def extract(self, prev_chunk: str, new_chunk: str, context_initial: TeachingDeviceExtractorContext) -> TeachingDeviceExtractorResult:
+    def extract(self, prev_chunk: str, new_chunk: str, context: TeachingDeviceExtractorContext) -> TeachingDeviceExtractorResult:
         pass

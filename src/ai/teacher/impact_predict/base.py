@@ -1,5 +1,4 @@
-from abc import ABC
-from discourse.discourse import Person
+from abc import ABC, abstractmethod
 from discourse.ingestor import DiscourseChunkIngestor
 from teacher.student import Student
 from teacher.teaching_device import TeachingDevice, TeachingImpact
@@ -20,4 +19,6 @@ class TeachingDeviceImpactPredictor(DiscourseChunkIngestor, ABC):
         self.collector = collector
 
 class TeachingDeviceImpactPredictorFactory(ABC):
-    def instance(teaching_device: TeachingDevice, student: Student, collector: TeachingDeviceImpactCollector)
+    @abstractmethod
+    def instance(teaching_device: TeachingDevice, student: Student, collector: TeachingDeviceImpactCollector) -> TeachingDeviceImpactPredictor:
+        pass

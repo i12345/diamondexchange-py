@@ -28,15 +28,25 @@ class DiscourseType(Enum):
     SONG = "song"
 
 class DiscourseFeatures(BaseModel):
-    types: list[DiscourseType]
-    members: list[DiscourseMember]
+    types: list[DiscourseType] = []
+    members: list[DiscourseMember] = []
+
+class DiscourseContext(BaseModel):
+    textual_context: TextualContext = Field(default_factory=TextualContext)
 
 class DiscourseChunk(BaseModel):
-    text: str
-    communicator: DiscourseMember
-    index: str = Field(description="index of chunk in discourse")
-    textual_context: TextualContext | None
+    text: str = Field(default="")
+    communicator: DiscourseMember = Field(default_factory=DiscourseMember)
+    index: str = Field(default="", description="index of chunk in discourse")
+    context_at_start: DiscourseContext = Field(default_factory=DiscourseContext, description="Context before reading/listening to this discourse chunk")
 
-class PartialDiscourse(DiscourseFeatures):
+class PartialDiscourseWithoutContextAtEnd(BaseModel):
+    features: DiscourseFeatures = Field(default_factory=DiscourseFeatures)
     is_truncated: bool = Field(description="Whether there were previous chunks that have been elided from this partial discourse", default=False)
-    prev_chunks: list[DiscourseChunk] = Field(description="Previous chunks of the discourse, not necessarily all", default=[])
+    prev_chunks: list[DiscourseChunk] = Field(description="Previous chunks of the discourse, not necessarily all", default_factory=lambda: [])
+
+class PartialDiscourse(PartialDiscourseWithoutContextAtEnd):
+    context_at_end: DiscourseContext = Field(default_factory=DiscourseContext, description="Context after reading/listening to the previous discourse chunks")
+
+class CompletedDiscourse(PartialDiscourse):
+    is_truncated = False
