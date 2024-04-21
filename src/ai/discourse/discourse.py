@@ -1,7 +1,8 @@
 from enum import Enum
+from typing import Literal
 from pydantic import BaseModel, Field
 
-from discourse.textual_context import TextualContext
+from src.ai.discourse.textual_context import TextualContext
 
 class CommunicationRole(Enum):
     SPEAKER = "speaker"
@@ -10,7 +11,11 @@ class CommunicationRole(Enum):
     STUDENT = "student"
     CONVERSANT = "conversant"
     LISTENER = "listener"
+    SINGER = "singer"
     FACILITATOR = "facilitator"
+    AUTHOR = "author"
+    WRITER = "writer"
+    READER = "reader"
 
 class Person(BaseModel):
     name: str
@@ -42,11 +47,13 @@ class DiscourseChunk(BaseModel):
 
 class PartialDiscourseWithoutContextAtEnd(BaseModel):
     features: DiscourseFeatures = Field(default_factory=DiscourseFeatures)
-    is_truncated: bool = Field(description="Whether there were previous chunks that have been elided from this partial discourse", default=False)
-    prev_chunks: list[DiscourseChunk] = Field(description="Previous chunks of the discourse, not necessarily all", default_factory=lambda: [])
+    is_truncated_prev: bool = Field(description="Whether there are previous chunks not in this partial discourse", default=False)
+    is_truncated_next: bool = Field(description="Whether there are following chunks not in this partial discourse", default=True)
+    chunks: list[DiscourseChunk] = Field(description="Section of discourse in chunks. The last entry is a new chunk to consider.", default_factory=lambda: [])
 
 class PartialDiscourse(PartialDiscourseWithoutContextAtEnd):
-    context_at_end: DiscourseContext = Field(default_factory=DiscourseContext, description="Context after reading/listening to the previous discourse chunks")
+    context_at_end: DiscourseContext = Field(default_factory=DiscourseContext, description="Context after reading/listening to partial discourse chunks")
 
 class CompletedDiscourse(PartialDiscourse):
-    is_truncated = False
+    is_truncated_prev: Literal[False] = False
+    is_truncated_next: Literal[False] = False

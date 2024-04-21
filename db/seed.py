@@ -59,7 +59,7 @@ def load_KJ(session: Session):
                     for verse in paragraph.verses:
                         verse_note = Item(text=verse.text)
                         session.add(verse_note)
-                        child_verses.append(ItemChild(local_index=local_index_verse, local_label=verse.index, child=verse_note))
+                        child_verses.append(ItemChild(local_index=local_index_verse, label=f"{verse.index}", child=verse_note))
                         local_index_verse += 1
 
                     item_paragraph = Item(child_display_class=ItemChildrenDisplayClass.INLINE, children=child_verses)
@@ -67,7 +67,7 @@ def load_KJ(session: Session):
                     child_paragraphs.append(ItemChild(local_index=local_index_paragraph, child=item_paragraph))
                     local_index_paragraph += 1
 
-                item_chapter = Item(text=f"{chapter.index}", child_display_class=ItemChildrenDisplayClass.BLOCK, children=child_paragraphs)
+                item_chapter = Item(child_display_class=ItemChildrenDisplayClass.BLOCK, children=child_paragraphs)
                 session.add(item_chapter)
                 child_chapters.append(ItemChild(local_index=local_index_chapter, label=f"{chapter.index}", child=item_chapter))
                 local_index_chapter += 1

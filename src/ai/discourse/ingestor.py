@@ -1,24 +1,33 @@
 from abc import ABC, abstractmethod
+from typing import Callable, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from tiktoken import Encoding, get_encoding
 
-from discourse.discourse import CompletedDiscourse, DiscourseChunk, DiscourseFeatures, PartialDiscourse, PartialDiscourseWithoutContextAtEnd, TextualContext
-from discourse.ingestor import DiscourseChunkIngestorContext
+from src.ai.discourse.discourse import CompletedDiscourse, DiscourseChunk, DiscourseFeatures, PartialDiscourse, PartialDiscourseWithoutContextAtEnd, TextualContext
 
 from dspy import Signature, InputField, OutputField, TypedPredictor
 
 class DiscourseChunkIngestorContext(BaseModel):
-    partial_discourse: PartialDiscourse
+    partial_discourse: PartialDiscourse = Field(default_factory=PartialDiscourse)
 
-@ABC
-class DiscourseChunkIngestor():
+class DiscourseChunkIngestor(ABC):
     @abstractmethod
     def ingest(self, new_chunk: DiscourseChunk, context: DiscourseChunkIngestorContext) -> dict[str, any] | None:
         pass
 
-@ABC
-class DiscourseChunkIngestorDiscourseContextUpdater(DiscourseChunkIngestor):
+class BackingDiscourseChunkIngestor(DiscourseChunkIngestor):
+    def __init__(self, features: DiscourseFeatures, new_chunk_receiver: Optional[Callable[[DiscourseChunk], None]]):
+        super().__init__()
+        self.discourse = CompletedDiscourse(features=features)
+        self.new_chunk_receiver = new_chunk_receiver
+
+    def ingest(self, new_chunk: DiscourseChunk, context: DiscourseChunkIngestorContext) -> dict[str, any] | None:
+        self.discourse.chunks.append(new_chunk)
+        if self.new_chunk_receiver is not None:
+            self.new_chunk_receiver(new_chunk)
+
+class DiscourseChunkIngestorDiscourseContextUpdater(DiscourseChunkIngestor, ABC):
     pass
 
 class DiscourseChunkIngestorDiscourseTextualContextUpdaterWithLLMSignature(Signature):
@@ -33,7 +42,7 @@ class DiscourseChunkIngestorDiscourseTextualContextUpdaterWithLLM(DiscourseChunk
         self.updater = TypedPredictor(DiscourseChunkIngestorDiscourseTextualContextUpdaterWithLLMSignature)
 
     def ingest(self, new_chunk: DiscourseChunk, context: DiscourseChunkIngestorContext) -> dict[str, any] | None:
-        partial_discourse_without_context = PartialDiscourseWithoutContextAtEnd(features=context.partial_discourse.features, is_truncated=context.partial_discourse.is_truncated, prev_chunks=context.partial_discourse.prev_chunks)
+        partial_discourse_without_context = PartialDiscourseWithoutContextAtEnd.model_construct(**context.partial_discourse.model_dump(exclude={'context_at_end'}))
         results = self.updater(partial_discourse=partial_discourse_without_context)
         partial_discourse_context_updated = context.partial_discourse.context_at_end.model_copy(update={ "textual_context": results.textual_context_at_end })
         partial_discourse_updated = context.partial_discourse.model_copy(update={ "context_at_end": partial_discourse_context_updated })
@@ -44,8 +53,8 @@ class DiscourseChunkIngestorDiscourseContextUpdaterWithCachedResults(DiscourseCh
         self.true_discourse = true_discourse
 
     def ingest(self, new_chunk: DiscourseChunk, context: DiscourseChunkIngestorContext) -> dict[str, any] | None:
-        index = next(i for i, chunk in enumerate(self.true_discourse.prev_chunks) if chunk.index == new_chunk.index)
-        context_at_end = self.true_discourse.prev_chunks[index + 1].context_at_start if index + 1 < len(self.true_discourse.prev_chunks) else self.true_discourse.context_at_end
+        index = next(i for i, chunk in enumerate(self.true_discourse.chunks) if chunk.index == new_chunk.index)
+        context_at_end = self.true_discourse.chunks[index + 1].context_at_start if index + 1 < len(self.true_discourse.chunks) else self.true_discourse.context_at_end
         partial_discourse_updated = context.partial_discourse.model_copy(update={ "context_at_end": context_at_end })
         return { "partial_discourse": partial_discourse_updated }
 
@@ -60,7 +69,7 @@ class DiscourseIngestor:
         self.ingestors = ingestors
         self.max_prev_chunks_tokens = max_prev_chunks_tokens
         self.token_enc = token_enc
-        self.prev_chunks_token_lengths = [] # type: list[int]
+        self.chunks_token_lengths = [] # type: list[int]
         self.context = DiscourseChunkIngestorContext(discourse=self.discourse)
 
     def ingest(self, new_chunk: DiscourseChunk):
@@ -71,11 +80,11 @@ class DiscourseIngestor:
             if context_updates != None:
                 self.context = self.context.model_copy(update=context_updates)
 
-        self.discourse.prev_chunks.append(new_chunk)
-        self.prev_chunks_token_lengths.append(len(self.token_enc.encode(new_chunk.text)))
+        self.discourse.chunks.append(new_chunk)
+        self.chunks_token_lengths.append(len(self.token_enc.encode(new_chunk.text)))
         
         if self.max_prev_chunks_tokens > 0:
-            while sum(self.prev_chunks_token_lengths) > self.max_prev_chunks_tokens:
-                self.discourse.is_truncated = True
-                self.discourse.prev_chunks.pop(0)
-                self.prev_chunks_token_lengths.pop(0)
+            while sum(self.chunks_token_lengths) > self.max_prev_chunks_tokens:
+                self.discourse.is_truncated_prev = True
+                self.discourse.chunks.pop(0)
+                self.chunks_token_lengths.pop(0)

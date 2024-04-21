@@ -12,8 +12,7 @@ class IllustrationTeachingDevice(TextTeachingDevice):
     type: Literal["illustration"] = Field(default="illustration")
     object: str = Field(description="The object made into an illustration")
 
-@ABC
-class IllustrationGenerator(TeachingDeviceGenerator):
+class IllustrationGenerator(TeachingDeviceGenerator, ABC):
     pass
 
 class ZeroShotIllustratorSignature(TeachingDeviceGenerationBaseSignature):

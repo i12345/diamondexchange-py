@@ -5,11 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Module",
+            "name": "DB seed",
             "type": "python",
             "request": "launch",
             "module": "db.seed",
             "justMyCode": true,
         },
+        {
+            "name": "read",
+            "type": "python",
+            "request": "launch",
+            "module": "test.read",
+            "justMyCode": true,
+        }
     ]
 }
