@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Initialize/import",
+            "type": "python",
+            "request": "launch",
+            "module": "src.initialize.Bible",
+            "justMyCode": true
+        },
+        {
             "name": "DB seed",
             "type": "python",
             "request": "launch",
