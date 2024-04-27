@@ -13,6 +13,7 @@ class ItemChildrenDisplayClass(str, Enum):
     PAGINATION = 'PAGINATION'
     TABS = 'TABS'
     ACCORDION = 'ACCORDION'
+    TABLE_OF_CONTENTS = "TABLE_OF_CONTENTS"
     TABLE = 'TABLE'
     TABLE_ROW = 'TABLE_ROW'
 

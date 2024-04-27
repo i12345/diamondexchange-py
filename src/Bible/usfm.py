@@ -2,6 +2,10 @@ from enum import Enum
 import os
 from typing import Optional, Union
 
+from sqlmodel import Session
+
+from src.models.item import Item, ItemChild, ItemChildrenDisplayClass
+
 class USFMMarkerContents:
     name: Optional[str] = None
     level: Optional[int] = None
@@ -271,7 +275,7 @@ class USFMMarkerFormatsFootnote:
 class USFMMarkerFormatsParagraph:
     _category = "paragraph"
 
-    qc = USFMMarkerFormat("qc", text=Option.required)
+    poetic_line_centered = USFMMarkerFormat("qc", text=Option.required)
     poetic_line = USFMMarkerFormat("q", leveled=Option.optional)
 
     descriptive_title = USFMMarkerFormat("d", may_contain=["{character}"])
@@ -301,13 +305,16 @@ class USFMFile:
         self.filename = filename
         self.contents = contents
 
+def formatList(formats):
+    return [format for format in vars(formats).values() if isinstance(format, USFMMarkerFormat)]
+
 def read_Bible_USFM(directory: str, skip: Optional[list[str]] = None) -> list[USFMFile]:
     
     def formatCategory(formats) -> str:
         return next(category for key, category in vars(formats).items() if key.endswith("_category"))
 
     def formatMap(formats):
-        return { format.name: format for format in vars(formats).values() if isinstance(format, USFMMarkerFormat) }
+        return { format.name: format for format in formatList(formats) }
     
     formats = { formatCategory(formats): formatMap(formats) for formats in [USFMMarkerFormatsCharacter, USFMMarkerFormatsParagraph, USFMMarkerFormatsFootnote, USFMMarkerFormatsFile] }
 
@@ -342,3 +349,69 @@ def read_Bible_USFM(directory: str, skip: Optional[list[str]] = None) -> list[US
         files.append(USFMFile(filename=filename, contents=contents))
     
     return files
+
+def read_Bible(directory: str, session: Session, title: str, **kwargs) -> Item:
+    Bible = Item(text=title, children_display_class=ItemChildrenDisplayClass.TABLE_OF_CONTENTS)
+
+    paragraph_names = [format.name for format in formatList(USFMMarkerFormatsParagraph)]
+
+    def space_plain_text_character(verse_contents: list[USFMMarkerContents]) -> str:
+        text = ""
+
+        for content in verse_contents:
+            if content.name == USFMMarkerFormatsCharacter.text:
+                text += f" {content.text}"
+            elif content.name == USFMMarkerFormatsCharacter.word:
+                text += f" {content.text}"
+            elif content.name == USFMMarkerFormatsCharacter.addition:
+                text += f" {content.text}"
+                if content.descendants is not None:
+                    text += space_plain_text_character(content.descendants)
+            elif content.name == USFMMarkerFormatsCharacter.footnote:
+                pass
+            elif content.name == USFMMarkerFormatsCharacter.selah:
+                if content.text.startswith("["):
+                    text += f" {content.text[1:]}"
+                else:
+                    text += f" {content.text}"
+                if content.descendants is not None:
+                    text += space_plain_text_character(content.descendants)
+            else:
+                raise NotImplementedError()
+
+        return text
+
+    for book in read_Bible_USFM(directory=directory, **kwargs):
+        name: str
+        
+        for file_content in book.contents:
+            if file_content.name == USFMMarkerFormatsFile.table_of_contents.name:
+                if file_content.level == 2:
+                    name = file_content.text
+            elif file_content.name == USFMMarkerFormatsFile.chapter.name:
+                chapter_paragraphs = [] # type: list[ItemChild]
+
+                current_verse_usfm = [] # type: list[USFMMarkerContents]
+                current_verse_label: str | None = None
+
+                current_paragraph_verses = [] # type: list[ItemChild]
+
+                def save_verse():
+                    if len(current_verse_usfm) > 0:
+                        current_verse_text = space_plain_text_character(current_verse_usfm)[1:]
+                        current_verse_usfm.clear()
+                        current_paragraph_verses.append(ItemChild(label=current_verse_label, child=Item(text=current_verse_text)))
+
+                for paragraph_content in file_content.descendants:
+                    if paragraph_content.name in paragraph_names:
+                        if current_verse_label is not None and len(current_verse_usfm) > 0:
+                            save_verse()
+                        
+                        chapter_paragraphs.append(ItemChild(child=Item(children_display_class=ItemChildrenDisplayClass.INLINE, children=current_paragraph_verses)))
+                        current_paragraph_verses = []
+                    elif paragraph_content.name == USFMMarkerFormatsCharacter.verse:
+                        save_verse()
+                        current_verse_label = str(paragraph_content.number)
+
+
+    return Bible
